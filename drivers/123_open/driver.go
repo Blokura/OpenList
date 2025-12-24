@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strconv"
 	"time"
+	"net/url"
+	"strings"
 
 	"github.com/OpenListTeam/OpenList/v4/internal/driver"
 	"github.com/OpenListTeam/OpenList/v4/internal/errs"
@@ -67,6 +69,26 @@ func (d *Open123) List(ctx context.Context, dir model.Obj, args model.ListArgs) 
 	})
 }
 
+func (d *Open123) applyCDNPrefix(rawURL string) string {
+	if d.DownloadCDNPrefix == "" {
+		return rawURL
+	}
+
+	u, err := url.Parse(rawURL)
+	if err != nil || u.Host == "" {
+		return rawURL
+	}
+
+	prefix := strings.TrimRight(d.DownloadCDNPrefix, "/")
+
+	newURL := prefix + "/" + u.Host + u.Path
+	if u.RawQuery != "" {
+		newURL += "?" + u.RawQuery
+	}
+
+	return newURL
+}
+
 func (d *Open123) Link(ctx context.Context, file model.Obj, args model.LinkArgs) (*model.Link, error) {
 	fileId, _ := strconv.ParseInt(file.GetID(), 10, 64)
 
@@ -79,7 +101,7 @@ func (d *Open123) Link(ctx context.Context, file model.Obj, args model.LinkArgs)
 		if d.DirectLinkPrivateKey == "" {
 			duration := 365 * 24 * time.Hour // 缓存1年
 			return &model.Link{
-				URL:        res.Data.URL,
+				URL:		res.Data.URL,
 				Expiration: &duration,
 			}, nil
 		}
@@ -98,7 +120,7 @@ func (d *Open123) Link(ctx context.Context, file model.Obj, args model.LinkArgs)
 		}
 
 		return &model.Link{
-			URL:        newURL,
+			URL:		newURL,
 			Expiration: &duration,
 		}, nil
 	}
@@ -108,7 +130,8 @@ func (d *Open123) Link(ctx context.Context, file model.Obj, args model.LinkArgs)
 		return nil, err
 	}
 
-	return &model.Link{URL: res.Data.DownloadUrl}, nil
+	finalURL := d.applyCDNPrefix(res.Data.DownloadUrl)
+	return &model.Link{URL: finalURL}, nil
 }
 
 func (d *Open123) MakeDir(ctx context.Context, parentDir model.Obj, dirName string) error {
@@ -180,10 +203,10 @@ func (d *Open123) Put(ctx context.Context, dstDir model.Obj, file model.FileStre
 		if createResp.Data.FileID != 0 {
 			return File{
 				FileName: file.GetName(),
-				Size:     file.GetSize(),
+				Size:	 file.GetSize(),
 				FileId:   createResp.Data.FileID,
-				Type:     2,
-				Etag:     etag,
+				Type:	 2,
+				Etag:	 etag,
 			}, nil
 		}
 	}
@@ -202,10 +225,10 @@ func (d *Open123) Put(ctx context.Context, dstDir model.Obj, file model.FileStre
 			up(100)
 			return File{
 				FileName: file.GetName(),
-				Size:     file.GetSize(),
+				Size:	 file.GetSize(),
 				FileId:   uploadCompleteResp.Data.FileID,
-				Type:     2,
-				Etag:     etag,
+				Type:	 2,
+				Etag:	 etag,
 			}, nil
 		}
 		// 若接口返回的completed为 false 时，则需间隔1秒继续轮询此接口，获取上传最终结果。
@@ -238,6 +261,6 @@ func (d *Open123) OfflineDownloadProcess(ctx context.Context, taskID int) (float
 }
 
 var (
-	_ driver.Driver    = (*Open123)(nil)
+	_ driver.Driver	= (*Open123)(nil)
 	_ driver.PutResult = (*Open123)(nil)
 )
