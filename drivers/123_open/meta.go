@@ -29,6 +29,8 @@ type Addition struct {
 	DirectLinkValidDuration int64  `json:"DirectLinkValidDuration" type:"number" default:"30" required:"false" help:"minutes, if URL authentication is enabled"`
 
 	driver.RootID
+
+	DownloadCDNPrefix string `json:"DownloadCDNPrefix" required:"false" help:"custom download CDN prefix"`
 }
 
 var config = driver.Config{
